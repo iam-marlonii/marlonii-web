@@ -176,7 +176,7 @@ export const siteFiles: SiteFile[] = [
 						<td>the-bible-api</td>
 						<td>Open Source scripture study tools</td>
 						<td>Flutter, Go, PostgreSQL</td>
-						<td><a href="#">docs.scripturecommons.com</a></td>
+						<td><a href="#">scripturecommons.com</a></td>
 						<td>Marlon Ausby II</td>
 						<td>Scripture Commons</td>
 					</tr>
@@ -189,20 +189,20 @@ export const siteFiles: SiteFile[] = [
 						<td>The 7th Lab</td>
 					</tr>
 					<tr>
-						<td>project-three</td>
-						<td>Another great project</td>
+						<td>cookout-yall</td>
+						<td>Open source project for the cookout!</td>
 						<td>Python, Flask, Redis</td>
-						<td><a href="#">live-link.com</a></td>
+						<td><a href="#">cookoutyall.com</a></td>
 						<td>Marlon Ausby II</td>
-						<td> By Marlon II</td>
+						<td>The 7th Lab</td>
 					</tr>
 					<tr>
-						<td>project-three</td>
+						<td>gitchem</td>
 						<td>Another great project</td>
 						<td>Python, Flask, Redis</td>
-						<td><a href="#">live-link.com</a></td>
+						<td><a href="#">gitchem.io</a></td>
 						<td>Marlon Ausby II</td>
-						<td> By Marlon II</td>
+						<td>The 7th Lab</td>
 					</tr>
 				</tbody>
 			</table>
