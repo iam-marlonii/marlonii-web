@@ -6,15 +6,14 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "deploy": "wrangler deploy",
     "astro": "astro"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.1.2",
     "@tailwindcss/vite": "^4.1.18",
     "astro": "^6.0.7",
-    "tailwindcss": "^4.2.2"
-  },
-  "devDependencies": {
+    "tailwindcss": "^4.2.2",
     "wrangler": "^4.92.0"
   }
 }
