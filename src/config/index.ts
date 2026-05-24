@@ -30,7 +30,7 @@ export const siteFiles: SiteFile[] = [
 		content: lines([
 			`<span class="syn-heading"># Marlon Ausby II</span>`,
 			``,
-			`<span class="syn-heading">## Solving problems with code and design</span>`,
+			`<span class="syn-heading">### Solving problems with code and design</span>`,
 			``,
 			`<span class="syn-bold">**Status:**</span> Continuously Seeking`,
 			``,
@@ -274,7 +274,7 @@ export const siteFiles: SiteFile[] = [
 					<tr>
 						<td>cookout-yall</td>
 						<td>Open source project for the cookout!</td>
-						<td>Python, Svelte, PostgreSQL</td>
+						<td>PHP, Laravel, SQLite</td>
 						<td><a href="#">cookoutyall.com</a></td>
 						<td>Marlon Ausby II</td>
 						<td>The 7th Lab</td>
@@ -282,7 +282,7 @@ export const siteFiles: SiteFile[] = [
 					<tr>
 						<td>gitchem</td>
 						<td>Another great project</td>
-						<td>Flutter, Go, PostgreSQL</td>
+						<td>Python, Svelte, MySQL</td>
 						<td><a href="#">gitchem.io</a></td>
 						<td>Marlon Ausby II</td>
 						<td>The 7th Lab</td>
