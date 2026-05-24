@@ -245,8 +245,6 @@ export class Terminal {
 		this.addOutput('  clear         - Clear terminal output');
 		this.addOutput('  help          - Show this help message');
 		this.addOutput('');
-		this.addOutput('Available files:');
-		this.fileList().forEach((file) => this.addOutput(`  ${file}`));
 	}
 
 	private handleClear() {
