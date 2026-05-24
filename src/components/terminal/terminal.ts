@@ -1,33 +1,24 @@
-import { RESUME_PDF_URL } from '../../config/urls';
+import { siteFiles, type SiteFile } from '../../config/index';
+
+type WindowWithSelectFile = Window & { selectFile?: (fileId: string) => void };
 
 export class Terminal {
 	private container: HTMLElement;
 	private input!: HTMLInputElement;
 	private output!: HTMLElement;
+	private promptEl!: HTMLElement;
 	private history: string[] = [];
 	private historyIndex: number = -1;
-	private currentPath: string = '/';
 
-	private readonly files: Record<string, string> = {
-		'home.md': '/?file=home',
-		'experience.ts': '/?file=experience',
-		'education.css': '/?file=education',
-		'projects.sql': '/?file=projects',
-		'contact.html': '/?file=contact',
-		'resume.pdf': RESUME_PDF_URL,
-	};
-
-	private readonly aliases: Record<string, string> = {
-		'home': 'home.md',
-		'experience': 'experience.ts',
-		'education': 'education.css',
-		'projects': 'projects.sql',
-		'contact': 'contact.html',
-		'resume': 'resume.pdf',
-	};
+	/** filename -> SiteFile (e.g. "about.md" -> {...}) */
+	private readonly filesByName: Map<string, SiteFile>;
+	/** id -> SiteFile (e.g. "about" -> {...}) */
+	private readonly filesById: Map<string, SiteFile>;
 
 	constructor(container: HTMLElement) {
 		this.container = container;
+		this.filesByName = new Map(siteFiles.map((f) => [f.filename.toLowerCase(), f]));
+		this.filesById = new Map(siteFiles.map((f) => [f.id.toLowerCase(), f]));
 		this.init();
 	}
 
@@ -35,7 +26,7 @@ export class Terminal {
 		this.container.innerHTML = `
 			<div class="terminal-output" id="terminal-output"></div>
 			<div class="terminal-input-line">
-				<span class="terminal-prompt">visitor@marlonii ~ %</span>
+				<span class="terminal-prompt" id="terminal-prompt"></span>
 				<input 
 					type="text" 
 					class="terminal-input" 
@@ -48,11 +39,13 @@ export class Terminal {
 
 		this.output = this.container.querySelector('#terminal-output') as HTMLElement;
 		this.input = this.container.querySelector('#terminal-input') as HTMLInputElement;
+		this.promptEl = this.container.querySelector('#terminal-prompt') as HTMLElement;
 
-		this.addOutput('--------------------------------');
+		this.refreshPrompt();
+		this.addOutput('--------------------------------------');
 		this.addOutput('Welcome to my website!');
 		this.addOutput('Type "help" to see available commands.');
-		this.addOutput('--------------------------------');
+		this.addOutput('--------------------------------------');
 
 		this.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
 		this.input.addEventListener('input', () => this.handleInput());
@@ -61,6 +54,28 @@ export class Terminal {
 		this.container.addEventListener('click', () => {
 			this.input.focus();
 		});
+	}
+
+	/**
+	 * Read the currently rendered file id from the DOM (the sidebar marks the active
+	 * file with `.sidebar-link-active`). Falls back to the first configured file,
+	 * which matches what `index.astro` renders by default.
+	 */
+	private getCurrentFileId(): string {
+		const activeBtn = document.querySelector(
+			'.sidebar-file-btn.sidebar-link-active[data-file-id]',
+		);
+		const id = activeBtn?.getAttribute('data-file-id');
+		if (id && this.filesById.has(id.toLowerCase())) return id;
+		return siteFiles[0].id;
+	}
+
+	private renderPrompt(): string {
+		return `visitor@marlonii ~/${this.getCurrentFileId()} %`;
+	}
+
+	private refreshPrompt() {
+		this.promptEl.textContent = this.renderPrompt();
 	}
 
 	private handleKeyDown(e: KeyboardEvent) {
@@ -109,11 +124,10 @@ export class Terminal {
 		this.input.style.width = `${Math.max(20, width + 10)}px`;
 	}
 
-	private resolveFile(name: string): string | undefined {
-		if (this.files[name]) return name;
-		const alias = this.aliases[name.toLowerCase()];
-		if (alias) return alias;
-		return undefined;
+	/** Resolve a user-typed target (id, filename, or alias-with-extension) to a SiteFile. */
+	private resolveFile(name: string): SiteFile | undefined {
+		const key = name.toLowerCase();
+		return this.filesByName.get(key) ?? this.filesById.get(key);
 	}
 
 	private handleTabCompletion() {
@@ -122,28 +136,27 @@ export class Terminal {
 		const command = parts[0];
 		const arg = parts[1] || '';
 
-		if ((command === 'open' || command === 'cd') && arg) {
-			const allNames = [...Object.keys(this.files), ...Object.keys(this.aliases)];
-			const matches = allNames.filter(name =>
-				name.startsWith(arg.toLowerCase())
-			);
+		if ((command === 'open' || command === 'cd' || command === 'cat') && arg) {
+			const allNames = [
+				...Array.from(this.filesByName.keys()),
+				...Array.from(this.filesById.keys()),
+			];
+			const matches = allNames.filter((name) => name.startsWith(arg.toLowerCase()));
 			if (matches.length === 1) {
 				this.input.value = `${command} ${matches[0]}`;
 			} else if (matches.length > 1) {
-				this.addOutput(matches.join('  '));
-				this.addPrompt();
+				this.addOutput(Array.from(new Set(matches)).join('  '));
 			}
 		}
 	}
 
 	private executeCommand(command: string) {
 		if (!command) {
-			this.addPrompt();
 			return;
 		}
 
 		this.history.push(command);
-		this.addOutput(`visitor@marlonii ~ % ${command}`, 'command');
+		this.addOutput(`${this.renderPrompt()} ${command}`, 'command');
 
 		const parts = command.split(' ');
 		const cmd = parts[0].toLowerCase();
@@ -152,6 +165,7 @@ export class Terminal {
 		switch (cmd) {
 			case 'open':
 			case 'cd':
+			case 'cat':
 				this.handleOpen(args);
 				break;
 			case 'ls':
@@ -166,104 +180,81 @@ export class Terminal {
 			case 'pwd':
 				this.handlePwd();
 				break;
-			case 'cat':
-				this.handleCat(args);
-				break;
 			default:
 				this.addOutput(`Command not found: ${cmd}. Type "help" for available commands.`);
-				this.addPrompt();
 		}
 	}
 
-	/** External http(s) URLs open in a new tab; same-site routes use navigation. */
-	private navigateToUrl(url: string) {
-		if (/^https?:\/\//i.test(url)) {
-			const w = window.open(url, '_blank');
-			if (w) w.opener = null;
+	private openExternal(url: string) {
+		const w = window.open(url, '_blank');
+		if (w) w.opener = null;
+	}
+
+	/** Open a SiteFile: swap content in-place for internal files, new tab for external. */
+	private openFile(file: SiteFile) {
+		if (file.externalUrl) {
+			this.addOutput(`Opening ${file.filename} in a new tab...`);
+			this.openExternal(file.externalUrl);
+			return;
+		}
+
+		const selectFile = (window as WindowWithSelectFile).selectFile;
+		if (typeof selectFile === 'function') {
+			selectFile(file.id);
+			this.refreshPrompt();
+			this.addOutput(`Opened ${file.filename}`);
 		} else {
-			window.location.href = url;
+			this.addOutput(`Unable to open ${file.filename}: navigation unavailable.`);
 		}
 	}
 
 	private handleOpen(args: string[]) {
 		if (args.length === 0) {
 			this.addOutput('Usage: open <filename>');
-			this.addOutput(`Available files: ${Object.keys(this.files).join(', ')}`);
-			this.addPrompt();
+			this.addOutput(`Available files: ${this.fileList().join(', ')}`);
 			return;
 		}
 
 		const target = args[0];
-		const resolved = this.resolveFile(target);
+		const file = this.resolveFile(target);
 
-		if (resolved && this.files[resolved]) {
-			const url = this.files[resolved];
-			this.addOutput(`Opening ${resolved}...`);
-			const isExternal = /^https?:\/\//i.test(url);
-			if (isExternal) {
-				this.navigateToUrl(url);
-				this.addPrompt();
-			} else {
-				setTimeout(() => this.navigateToUrl(url), 300);
-			}
+		if (file) {
+			this.openFile(file);
 		} else {
 			this.addOutput(`open: no such file: ${target}`);
-			this.addOutput(`Available files: ${Object.keys(this.files).join(', ')}`);
-			this.addPrompt();
+			this.addOutput(`Available files: ${this.fileList().join(', ')}`);
 		}
 	}
 
+	private fileList(): string[] {
+		return siteFiles.map((f) => f.filename);
+	}
+
 	private handleLs() {
-		this.addOutput(Object.keys(this.files).join('  '));
-		this.addPrompt();
+		this.addOutput(this.fileList().join('  '));
 	}
 
 	private handleHelp() {
 		this.addOutput('Available commands:');
 		this.addOutput('  open <file>   - Open a file (e.g., open experience.ts)');
 		this.addOutput('  cd <file>     - Alias for open');
-		this.addOutput('  Shift+Tab     - Complete filename after open/cd');
+		this.addOutput('  cat <file>    - Alias for open');
+		this.addOutput('  Shift+Tab     - Complete filename after open/cd/cat');
 		this.addOutput('  ls            - List available files');
 		this.addOutput('  pwd           - Show current location');
 		this.addOutput('  clear         - Clear terminal output');
 		this.addOutput('  help          - Show this help message');
 		this.addOutput('');
 		this.addOutput('Available files:');
-		Object.keys(this.files).forEach(file => this.addOutput(`  ${file}`));
-		this.addPrompt();
+		this.fileList().forEach((file) => this.addOutput(`  ${file}`));
 	}
 
 	private handleClear() {
 		this.output.innerHTML = '';
-		this.addPrompt();
 	}
 
 	private handlePwd() {
-		this.addOutput(this.currentPath);
-		this.addPrompt();
-	}
-
-	private handleCat(args: string[]) {
-		if (args.length === 0) {
-			this.addOutput('cat: missing file operand');
-			this.addOutput('Try: cat <filename>');
-		} else {
-			const target = args[0];
-			const resolved = this.resolveFile(target);
-			if (resolved) {
-				const url = this.files[resolved];
-				this.addOutput(`Opening ${resolved}...`);
-				const isExternal = /^https?:\/\//i.test(url);
-				if (isExternal) {
-					this.navigateToUrl(url);
-				} else {
-					setTimeout(() => this.navigateToUrl(url), 300);
-				}
-			} else {
-				this.addOutput(`cat: ${target}: No such file or directory`);
-			}
-		}
-		this.addPrompt();
+		this.addOutput(`~/${this.getCurrentFileId()}`);
 	}
 
 	private addOutput(text: string, className: string = '') {
@@ -272,10 +263,6 @@ export class Terminal {
 		line.textContent = text;
 		this.output.appendChild(line);
 		this.scrollToBottom();
-	}
-
-	private addPrompt() {
-		// Prompt is always visible in the input line
 	}
 
 	private scrollToBottom() {
